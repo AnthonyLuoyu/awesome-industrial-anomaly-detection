@@ -26,6 +26,8 @@ A Survey on Industrial Anomalies Synthesis [[paper]](https://arxiv.org/abs/2502.
 
 🔥🔥🔥 3D Anomaly Detection: A Survey [[paper]](https://www.researchgate.net/publication/398334588_3D_Anomaly_Detection_A_Survey?_tp=eyJjb250ZXh0Ijp7InBhZ2UiOiJzcG90bGlnaHQiLCJwcmV2aW91c1BhZ2UiOiJwcm9maWxlIiwicG9zaXRpb24iOiJwYWdlQ29udGVudCJ9fQ) [[github]](https://github.com/M-3LAB/awesome-3d-anomaly-detection)
 
+📋 **E2AD Medical Anomaly Detection — Improvement Plan**: For a verified, corrected analysis of which methods in this repository can be adapted to the E2AD medical-image anomaly detection architecture (including provenance table and phased integration roadmap), see [E2AD_improvement_plan.md](./E2AD_improvement_plan.md).
+
 ---
 ## Table of Contents
 - [Awesome Industrial Anomaly Detection ](#awesome-industrial-anomaly-detection-)
