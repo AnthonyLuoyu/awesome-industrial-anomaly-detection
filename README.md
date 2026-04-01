@@ -81,6 +81,9 @@ A Survey on Industrial Anomalies Synthesis [[paper]](https://arxiv.org/abs/2502.
     - [Rubustness](#rubustness)
     - [Universal Task](#universal-task)
 - [4 Dataset](#4-dataset)
+- [E2AD 医学图像异常检测改造参考方案](#e2ad-医学图像异常检测改造参考方案)
+  - [方法核对表](#方法核对表)
+  - [分阶段实施计划（仅含本仓库可溯源方法）](#分阶段实施计划仅含本仓库可溯源方法)
   - [BibTex Citation](#bibtex-citation)
   - [Star History](#star-history)
 
@@ -1233,6 +1236,79 @@ A Survey on Industrial Anomalies Synthesis [[paper]](https://arxiv.org/abs/2502.
  + SiM3D: Single-instance Multiview Multimodal and Multisetup 3D Anomaly Detection Benchmark [[ICCV 2025]](https://arxiv.org/abs/2506.21549)[[data]](https://alex-costanzino.github.io/SiM3D/)
  + Toward Long-Tailed Online Anomaly Detection through Class-Agnostic Concepts [[ICCV 2025]](https://arxiv.org/abs/2507.16946)[[data]](https://zenodo.org/records/16283853)
  + Towards Open-Vocabulary Industrial Defect Understanding with a Large-Scale Multimodal Dataset [[2025]](https://arxiv.org/abs/2512.24160)
+
+## E2AD 医学图像异常检测改造参考方案
+
+> 本节针对基于 E2AD（双编码器-双解码器余弦一致性框架）的医学图像异常检测场景，逐一核查前序讨论中建议参考的5类创新方向是否出现在本仓库（`AnthonyLuoyu/awesome-industrial-anomaly-detection`，main 分支），并给出经纠正的方法表与分阶段改造计划。
+
+### 方法核对表
+
+| 方法 | 是否在本仓库 | 论文（年份） | Code URL | E2AD 改造说明 |
+|:-----|:----------:|:-----------|:---------|:------------|
+| **PatchCore（记忆库）** | ✅ 是 | [Towards Total Recall in Industrial Anomaly Detection](https://openaccess.thecvf.com/content/CVPR2022/html/Roth_Towards_Total_Recall_in_Industrial_Anomaly_Detection_CVPR_2022_paper.html)（CVPR 2022） | [amazon-science/patchcore-inspection](https://github.com/amazon-science/patchcore-inspection) | 提取 E2AD encoder 的 e2/e3 层 patch 特征，用 coreset 采样构建正常特征记忆库；推理时最近邻距离图与原 cosine 差异图（p_all_1/p_all_2）加权融合作为最终异常分数 |
+| **FastFlow（归一化流分布建模）** | ✅ 是（非官方实现） | [FastFlow: Unsupervised Anomaly Detection and Localization via 2D Normalizing Flows](https://arxiv.org/pdf/2111.07677.pdf)（2021） | [gathierry/FastFlow](https://github.com/gathierry/FastFlow)（非官方） | 在 e3 特征后并联 2D 归一化流 head；训练阶段增加负对数似然损失与原 cosine loss 合并；推理时 NLL 图与 p_all 图融合，提升分布外样本检测能力 |
+| **Transformer 全局注意力** | ✅ 是 | [Hierarchical Vector Quantized Transformer for Multi-class Unsupervised Anomaly Detection](https://openreview.net/pdf?id=clJTNssgn6)（NeurIPS 2023） | [RuiyingLu/HVQ-Trans](https://github.com/RuiyingLu/HVQ-Trans) | 将 E2AD 中的 SA（位置注意力）升级为多头自注意力 Transformer Block；在 e3/e2 层扩大感受野，捕获跨区域全局上下文；可参考 UniAD（NeurIPS 2022）引入多类别嵌入支持不同检查模态 |
+| **异常合成增强——CutPaste** | ✅ 是（非官方实现） | [CutPaste: Self-Supervised Learning for Anomaly Detection and Localization](http://arxiv.org/pdf/2104.04015)（ICCV 2021） | [Runinho/pytorch-cutpaste](https://github.com/Runinho/pytorch-cutpaste)（非官方） | 训练阶段对正常医学图像做 CutPaste 伪异常生成，提升 decoder 对局部异常纹理的敏感度；需结合医学图像特点调整剪切区域形态与强度范围 |
+| **异常合成增强——DRAEM** | ✅ 是 | [DRAEM: A Discriminatively Trained Reconstruction Embedding for Surface Anomaly Detection](https://openaccess.thecvf.com/content/ICCV2021/html/Zavrtanik_DRAEM_-_A_Discriminatively_Trained_Reconstruction_Embedding_for_Surface_Anomaly_ICCV_2021_paper.html)（ICCV 2021） | [vitjanz/draem](https://github.com/vitjanz/draem) | 借鉴 DRAEM 的重建+判别双支路：在 E2AD 双解码器框架中附加伪异常判别头，用随机纹理合成训练异常判别器；与 E2AD 的一致性损失联合训练 |
+| **医学预训练权重（Models Genesis / MedCLIP）** | ❌ 否（仓库未收录） | Models Genesis（2019）/ MedCLIP（2022） | 仓库外部资源 | 不在本仓库可溯源范围内。作为外部扩展建议：将 `resnet50(pretrained=True)` 替换为医学域预训练权重（需单独引入），可显著提升医学纹理特征质量，但不计入下方分阶段计划 |
+
+> **说明**：本仓库的医学相关论文区（`## Medical (related)`）目前处于注释状态，Models Genesis、MedCLIP 等医学预训练权重资源均未收录，故不纳入仓库可溯源的改造计划。
+
+---
+
+### 分阶段实施计划（仅含本仓库可溯源方法）
+
+#### Phase 1：记忆库融合（改动最小，最快见效）
+
+**参考方法**：PatchCore（CVPR 2022）——[代码](https://github.com/amazon-science/patchcore-inspection)
+
+| 步骤 | 说明 |
+|:-----|:----|
+| 1. 特征提取 | 推理时在 `forward` 中提取 `e2_1`、`e3_1` 作为 patch embedding |
+| 2. 建库 | 训练集遍历后对 patch 特征做 coreset 采样（建议库容 1024～4096；数据量小时取 1024，类别多或纹理复杂时取 4096，计算资源有限时优先缩小库容） |
+| 3. 评分 | 推理时计算测试 patch 与记忆库最近邻距离，生成 `p_mem` 异常图 |
+| 4. 融合 | `p_final = 0.5 × p_all_1 + 0.5 × p_mem`（比例可在验证集上调优） |
+
+**预期收益**：对细粒度纹理缺陷（如医学影像中的微小病灶）检出率显著提升；无需修改训练过程，仅在推理阶段叠加。
+
+CutPaste / DRAEM 异常合成增强可在本阶段同步启用（数据增强层面），无需额外结构改动。
+
+---
+
+#### Phase 2：归一化流概率头（提升分布外检测能力）
+
+**参考方法**：FastFlow（2021）——[非官方代码](https://github.com/gathierry/FastFlow)
+
+| 步骤 | 说明 |
+|:-----|:----|
+| 1. 结构 | 在 E2AD encoder 的 e3 层之后并联 2D 归一化流模块（保留原双解码器路径不变） |
+| 2. 损失 | 训练时增加 flow loss：`loss_flow = -log_likelihood(e3_1_sa)`，与原余弦损失加权合并 |
+| 3. 融合 | 推理时：`p_final = α·p_cosine + (1-α)·p_nll`，初始 `α=0.5`，通过验证集调优 |
+
+**预期收益**：对正常分布边界模糊的样本（如医学影像中正常结构变异较大的情形）误报率明显降低；与 Phase 1 记忆库方案可叠加使用。
+
+---
+
+#### Phase 3：Transformer 全局注意力升级（结构改动最大）
+
+**参考方法**：HVQ-Trans（NeurIPS 2023）——[代码](https://github.com/RuiyingLu/HVQ-Trans) / UniAD（NeurIPS 2022）——[代码](https://github.com/zhiyuanyou/UniAD)
+
+| 步骤 | 说明 |
+|:-----|:----|
+| 1. 替换注意力 | 将 `sa1`~`sa4`（SA 位置注意力模块）替换或扩展为轻量 Transformer Block（2层 MHSA + FFN） |
+| 2. 全局建模 | 在 e3/e4 层插入 Transformer encoder，捕获全局上下文（跨区域异常关联） |
+| 3. 可选扩展 | 参考 HVQ-Trans 加入向量量化（VQ）层增强特征离散化；参考 UniAD 引入类别 Token 支持多模态医学检查统一检测 |
+
+**预期收益**：感受野扩大至全图，有助于捕获医学图像中对称器官的非对称异常；支持多类别（多器官/多检查类型）统一检测，长期可扩展性强。
+
+---
+
+**综合建议**：
+- 三个阶段可独立验证，建议逐阶段消融评估（可参考 MVTec AD 或本仓库引用的 BMAD 医学基准）。
+- Phase 1 → Phase 2 → Phase 3 按序推进，每阶段均可在前一阶段基础上叠加。
+- 医学预训练权重（Models Genesis 等）虽不在本仓库范围内，但可在任一阶段作为 backbone 初始化的外部增益项引入。
+
+---
 
 ## BibTex Citation
 
